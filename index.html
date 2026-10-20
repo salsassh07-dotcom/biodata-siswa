@@ -14,7 +14,7 @@
   --teks: #14213d;
   --teks-redup: #5b667a;
   --garis: #d6dde8;
-  --aksen: #1d4ed8;
+  --aksen: #0284c7;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -23,7 +23,7 @@
     --teks: #e8edf6;
     --teks-redup: #98a4ba;
     --garis: #2a3650;
-    --aksen: #E75480;
+    --aksen: #38bdf8;
   }
 }
 * { box-sizing: border-box; }
@@ -64,15 +64,15 @@ header p { margin: 0; color: var(--teks-redup); }
   border-radius: 14px;
   overflow: hidden;
 }
-.pita { height: 56px; background: hsl(var(--hue) 65% 45%); }
+.pita { height: 56px; background: #38bdf8; }
 .isi { padding: 0 16px 16px; text-align: center; }
 .foto {
   width: 76px; height: 76px;
   margin: -38px auto 8px;
   border-radius: 50%;
   border: 4px solid var(--kartu);
-  background: hsl(var(--hue) 55% 88%);
-  color: hsl(var(--hue) 65% 28%);
+  background: #e0f2fe;
+  color: #0369a1;
   display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; overflow: hidden;
 }
 .foto img { width: 100%; height: 100%; object-fit: cover; }
@@ -167,7 +167,6 @@ function tampilkanSiswa() {
 
 function buatKartu(s) {
   const kartu = el("article", "kartu");
-  kartu.style.setProperty("--hue", warnaKelas(s.kelas));
   kartu.appendChild(el("div", "pita"));
   const isi = el("div", "isi");
 
@@ -215,12 +214,6 @@ function tambahBaris(dl, label, nilai) {
 
 function inisial(nama) {
   return nama.split(" ").filter(Boolean).slice(0, 2).map((k) => k[0].toUpperCase()).join("");
-}
-
-function warnaKelas(kelas) {
-  let total = 0;
-  for (const huruf of kelas || "") total += huruf.charCodeAt(0);
-  return (total * 47) % 360;
 }
 
 function formatTanggal(teks) {
