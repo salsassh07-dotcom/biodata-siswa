@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"> 
-<title>Biodata Siswa</title>
+<title>Teknik Jaringan Komputer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -93,13 +93,16 @@ header p { margin: 0; color: var(--teks-redup); }
 <body>
 <div class="wadah">
   <header>
-    <h1>Biodata Siswa</h1>
-    <p>Cari siswa berdasarkan nama atau NIS.</p>
+    <h1>Teknik Jaringan Komputer</h1>
+    <p>Cari Berdasarkan Role.</p>
   </header>
   <div class="kontrol">
-    <input id="cari" type="search" placeholder="Cari nama atau NIS" aria-label="Cari nama atau NIS">
+    <input id="cari" type="search" placeholder="Cari" aria-label="Cari Guru/Siswa">
     <select id="filterKelas" aria-label="Filter kelas">
-      <option value="">Semua kelas</option>
+      <option value="">Guru</option>
+    </select>
+    <select id="filterKelas" aria-label="Filter kelas">
+      <option value="">Siswa</option>
     </select>
   </div>
   <p id="jumlah" class="jumlah" aria-live="polite"></p>
