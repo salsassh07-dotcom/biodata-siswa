@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"> 
-<title>Teknik Jaringan Komputer</title>
+<title>Biodata Siswa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -93,18 +93,13 @@ header p { margin: 0; color: var(--teks-redup); }
 <body>
 <div class="wadah">
   <header>
-    <h1>Teknik Komputer Jaringan</h1>
-    <p>Cari berdasarkan role</p>
+    <h1>Biodata Siswa</h1>
+    <p>Cari siswa berdasarkan nama atau NIS.</p>
   </header>
   <div class="kontrol">
-    <input id="cari" type="search" placeholder="Cari data Guru/Siswa" aria-label="Cari nama atau NIS">
-    <select id="filterRole" aria-label="Filter Role">
-      <option value="">Semua (Guru / Siswa)</option>
-      <option value="siswa">Siswa</option>
-      <option value="guru">Guru</option>
-    </select>
-    <select id="filterKelas" aria-label="Filter kelas atau mapel">
-      <option value="">Semua kelas / mapel</option>
+    <input id="cari" type="search" placeholder="Cari nama atau NIS" aria-label="Cari nama atau NIS">
+    <select id="filterKelas" aria-label="Filter kelas">
+      <option value="">Semua kelas</option>
     </select>
   </div>
   <p id="jumlah" class="jumlah" aria-live="polite"></p>
@@ -121,11 +116,7 @@ const TAMPILKAN = {
   jenisKelamin: true,
   tanggalLahir: true,
   alamat: true,
-  foto_url: true,
-  namaguru: true,
-  jurusan: true,
-  mapel: true
-  
+  foto_url: true
 };
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -133,53 +124,41 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const elDaftar = document.getElementById("daftar");
 const elJumlah = document.getElementById("jumlah");
 const elCari = document.getElementById("cari");
-const elRole = document.getElementById("filterRole");
 const elKelas = document.getElementById("filterKelas");
 let semuaSiswa = [];
 
 async function muatData() {
-  tampilkanPesan("Memuat data...");
-  
-  const { data: dataSiswa } = await db
+  tampilkanPesan("Memuat data siswa...");
+  const { data, error } = await db
     .from("siswa")
     .select("nis, nama, kelas, jenis_kelamin, tanggal_lahir, alamat, foto_url")
     .order("nama");
 
-  const { data: dataGuru } = await db
-    .from("guru")
-    .select("nip, nama, jurusan, mapel, foto_url")
-    .order("nama");
-
-  let gabungan = [];
-  if (dataSiswa) gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
-  if (dataGuru) gabungan = gabungan.concat(dataGuru.map(g => ({ ...g, role: "guru" })));
-
-  semuaSiswa = gabungan;
+  if (error) {
+    console.error("Detail Error:", error);
+    tampilkanPesan("Data tidak bisa dimuat. Periksa URL dan anon key, nama tabel, serta policy RLS di Supabase.", true);
+    return;
+  }
+  semuaSiswa = data;
   isiPilihanKelas();
   tampilkanSiswa();
 }
 
 function tampilkanSiswa() {
   const kataKunci = elCari.value.trim().toLowerCase();
-  const roleDipilih = elRole.value;
-  const subDipilih = elKelas.value;
+  const kelasDipilih = elKelas.value;
 
   const hasil = semuaSiswa.filter((s) => {
-    const cocokRole = !roleDipilih || s.role === roleDipilih;
-    const cocokSub = !subDipilih || s.kelas === subDipilih || s.mapel === subDipilih;
-    
-    const nama = (s.nama || "").toLowerCase();
-    const id = (s.nis || s.nip || "").toLowerCase();
-    const cocokCari = !kataKunci || nama.includes(kataKunci) || id.includes(kataKunci);
-    
-    return cocokRole && cocokSub && cocokCari;
+    const cocokKelas = !kelasDipilih || s.kelas === kelasDipilih;
+    const cocokCari = !kataKunci || s.nama.toLowerCase().includes(kataKunci) || s.nis.toLowerCase().includes(kataKunci);
+    return cocokKelas && cocokCari;
   });
 
-  elJumlah.textContent = hasil.length + " dari " + semuaSiswa.length + " data";
+  elJumlah.textContent = hasil.length + " dari " + semuaSiswa.length + " siswa";
   elDaftar.replaceChildren();
 
   if (hasil.length === 0) {
-    tampilkanPesan(semuaSiswa.length === 0 ? "Belum ada data. Tambahkan data lewat Table Editor di Supabase." : "Tidak ada data yang cocok. Coba kata kunci lain.");
+    tampilkanPesan(semuaSiswa.length === 0 ? "Belum ada data siswa. Tambahkan data lewat Table Editor di Supabase." : "Tidak ada siswa yang cocok. Coba kata kunci atau kelas lain.");
     return;
   }
 
@@ -205,19 +184,13 @@ function buatKartu(s) {
 
   isi.appendChild(foto);
   isi.appendChild(el("h2", "nama", s.nama));
-  isi.appendChild(el("p", "nis", s.role === "guru" ? ("NIP " + (s.nip || "-")) : ("NIS " + (s.nis || "-"))));
+  isi.appendChild(el("p", "nis", "NIS " + s.nis));
 
   const rincian = el("dl", "rincian");
-  
-  if (s.role === "guru") {
-    tambahBaris(rincian, "Jurusan", s.jurusan);
-    tambahBaris(rincian, "Mapel", s.mapel);
-  } else {
-    tambahBaris(rincian, "Kelas", s.kelas);
-    if (TAMPILKAN.jenisKelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
-    if (TAMPILKAN.tanggalLahir) tambahBaris(rincian, "Tanggal lahir", formatTanggal(s.tanggal_lahir));
-    if (TAMPILKAN.alamat) tambahBaris(rincian, "Alamat", s.alamat);
-  }
+  tambahBaris(rincian, "Kelas", s.kelas);
+  if (TAMPILKAN.jenisKelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
+  if (TAMPILKAN.tanggalLahir) tambahBaris(rincian, "Tanggal lahir", formatTanggal(s.tanggal_lahir));
+  if (TAMPILKAN.alamat) tambahBaris(rincian, "Alamat", s.alamat);
   
   isi.appendChild(rincian);
   kartu.appendChild(isi);
@@ -253,35 +226,14 @@ function tampilkanPesan(teks, galat) {
 }
 
 function isiPilihanKelas() {
-  const role = elRole.value;
-  elKelas.replaceChildren();
-
-  const optDefault = el("option", "", role === "guru" ? "Semua Mapel" : (role === "siswa" ? "Semua Kelas" : "Semua Kelas / Mapel"));
-  optDefault.value = "";
-  elKelas.appendChild(optDefault);
-
-  let daftar = [];
-  if (role === "siswa") {
-    daftar = [...new Set(semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean))];
-  } else if (role === "guru") {
-    daftar = [...new Set(semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean))];
-  } else {
-    const k = semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean);
-    const m = semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean);
-    daftar = [...new Set([...k, ...m])];
-  }
-
-  daftar.sort().forEach((k) => {
+  const daftarKelas = [...new Set(semuaSiswa.map((s) => s.kelas).filter(Boolean))].sort();
+  daftarKelas.forEach((k) => {
     const opsi = el("option", "", k);
     opsi.value = k;
     elKelas.appendChild(opsi);
   });
 }
 
-elRole.addEventListener("change", () => {
-  isiPilihanKelas();
-  tampilkanSiswa();
-});
 elCari.addEventListener("input", tampilkanSiswa);
 elKelas.addEventListener("change", tampilkanSiswa);
 muatData();
