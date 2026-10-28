@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"> 
-<title>Teknik Jaringan Komputer</title>
+<title>Teknik Komputer Jaringan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -137,12 +137,11 @@ header p { margin: 0; color: var(--teks-redup); }
 <div class="wadah">
   <header>
     <div>
-      <h1>Teknik Jaringan Komputer</h1>
+      <h1>Teknik Komputer Jaringan</h1>
       <p>Cari berdasarkan role</p>
     </div>
     <button class="btn-tambah" onclick="bukaModal()">+ Tambah Data</button>
   </header>
-
   <div class="kontrol">
     <input id="cari" type="search" placeholder="Cari nama, NIS, atau NIP" aria-label="Cari nama atau NIS">
     <select id="filterRole" aria-label="Filter Role">
@@ -150,7 +149,7 @@ header p { margin: 0; color: var(--teks-redup); }
       <option value="siswa">Siswa</option>
       <option value="guru">Guru</option>
     </select>
-    <select id="filterKelas" aria-label="Filter kelas atau mapel">
+    <select id="filterKelas" aria-label="Filter kelas">
       <option value="">Semua kelas / mapel</option>
     </select>
   </div>
@@ -183,7 +182,7 @@ header p { margin: 0; color: var(--teks-redup); }
       <div id="formSiswaKhusus">
         <label>
           Kelas
-          <input type="text" id="inputKelas" placeholder="Contoh: XI TJKT 1">
+          <input type="text" id="inputKelas" placeholder="Contoh: XI TKJ 1">
         </label>
         <label>
           Jenis Kelamin
@@ -205,7 +204,7 @@ header p { margin: 0; color: var(--teks-redup); }
       <div id="formGuruKhusus" style="display: none;">
         <label>
           Jurusan
-          <input type="text" id="inputJurusan" value="Teknik Jaringan Komputer">
+          <input type="text" id="inputJurusan" value="Teknik Komputer Jaringan">
         </label>
         <label>
           Mata Pelajaran
@@ -255,14 +254,22 @@ async function muatData() {
     .select("nis, nama, kelas, jenis_kelamin, tanggal_lahir, alamat, foto_url")
     .order("nama");
 
-  const { data: dataGuru } = await db
-    .from("guru")
-    .select("nip, nama, jurusan, mapel, foto_url")
-    .order("nama");
-
   let gabungan = [];
-  if (dataSiswa) gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
-  if (dataGuru) gabungan = gabungan.concat(dataGuru.map(g => ({ ...g, role: "guru" })));
+  if (dataSiswa) {
+    gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
+  }
+
+  try {
+    const { data: dataGuru } = await db
+      .from("guru")
+      .select("nip, nama, jurusan, mapel, foto_url")
+      .order("nama");
+    if (dataGuru) {
+      gabungan = gabungan.concat(dataGuru.map(g => ({ ...g, role: "guru" })));
+    }
+  } catch (e) {
+    console.warn("Tabel guru belum tersedia:", e);
+  }
 
   semuaSiswa = gabungan;
   isiPilihanKelas();
@@ -271,22 +278,197 @@ async function muatData() {
 
 function tampilkanSiswa() {
   const kataKunci = elCari.value.trim().toLowerCase();
-  const roleDipilih = elRole.value;
-  const subDipilih = elKelas.value;
+  const roleDipilih = elRole ? elRole.value : "";
+  const kelasDipilih = elKelas.value;
 
   const hasil = semuaSiswa.filter((s) => {
     const cocokRole = !roleDipilih || s.role === roleDipilih;
-    const cocokSub = !subDipilih || s.kelas === subDipilih || s.mapel === subDipilih;
-    
+    const cocokKelas = !kelasDipilih || s.kelas === kelasDipilih || s.mapel === kelasDipilih;
     const nama = (s.nama || "").toLowerCase();
     const id = (s.nis || s.nip || "").toLowerCase();
     const cocokCari = !kataKunci || nama.includes(kataKunci) || id.includes(kataKunci);
     
-    return cocokRole && cocokSub && cocokCari;
+    return cocokRole && cocokKelas && cocokCari;
   });
 
   elJumlah.textContent = hasil.length + " dari " + semuaSiswa.length + " data";
   elDaftar.replaceChildren();
 
   if (hasil.length === 0) {
-    tampilkanPesan(semuaSiswa.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok. Coba
+    tampilkanPesan(semuaSiswa.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok.");
+    return;
+  }
+
+  hasil.forEach((s) => elDaftar.appendChild(buatKartu(s)));
+}
+
+function buatKartu(s) {
+  const kartu = el("article", "kartu");
+  kartu.appendChild(el("div", "pita"));
+  const isi = el("div", "isi");
+
+  const foto = el("div", "foto");
+  if (s.foto_url) {
+    const gambar = document.createElement("img");
+    gambar.src = s.foto_url;
+    gambar.alt = "Foto " + s.nama;
+    gambar.loading = "lazy";
+    gambar.onerror = () => foto.replaceChildren(document.createTextNode(inisial(s.nama)));
+    foto.appendChild(gambar);
+  } else {
+    foto.textContent = inisial(s.nama);
+  }
+
+  isi.appendChild(foto);
+  isi.appendChild(el("h2", "nama", s.nama));
+  isi.appendChild(el("p", "nis", s.role === "guru" ? ("NIP " + (s.nip || "-")) : ("NIS " + (s.nis || "-"))));
+
+  const rincian = el("dl", "rincian");
+
+  if (s.role === "guru") {
+    tambahBaris(rincian, "Jurusan", s.jurusan || "Teknik Komputer Jaringan");
+    tambahBaris(rincian, "Mapel", s.mapel);
+  } else {
+    tambahBaris(rincian, "Kelas", s.kelas);
+    if (TAMPILKAN.jenisKelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
+    if (TAMPILKAN.tanggalLahir) tambahBaris(rincian, "Tanggal lahir", formatTanggal(s.tanggal_lahir));
+    if (TAMPILKAN.alamat) tambahBaris(rincian, "Alamat", s.alamat);
+  }
+
+  isi.appendChild(rincian);
+  kartu.appendChild(isi);
+  return kartu;
+}
+
+function el(tag, kelas, teks) {
+  const e = document.createElement(tag);
+  if (kelas) e.className = kelas;
+  if (teks) e.textContent = teks;
+  return e;
+}
+
+function tambahBaris(dl, label, nilai) {
+  if (!nilai) return;
+  const baris = el("div");
+  baris.appendChild(el("dt", "", label));
+  baris.appendChild(el("dd", "", nilai));
+  dl.appendChild(baris);
+}
+
+function inisial(nama) {
+  return (nama || "").split(" ").filter(Boolean).slice(0, 2).map((k) => k[0].toUpperCase()).join("");
+}
+
+function formatTanggal(teks) {
+  if (!teks) return "";
+  return new Date(teks + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function tampilkanPesan(teks, galat) {
+  elDaftar.replaceChildren(el("p", "pesan" + (galat ? " galat" : ""), teks));
+}
+
+function isiPilihanKelas() {
+  const role = elRole ? elRole.value : "";
+  elKelas.replaceChildren();
+
+  const optDefault = el("option", "", role === "guru" ? "Semua Mapel" : (role === "siswa" ? "Semua Kelas" : "Semua Kelas / Mapel"));
+  optDefault.value = "";
+  elKelas.appendChild(optDefault);
+
+  let daftar = [];
+  if (role === "siswa") {
+    daftar = [...new Set(semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean))];
+  } else if (role === "guru") {
+    daftar = [...new Set(semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean))];
+  } else {
+    const k = semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean);
+    const m = semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean);
+    daftar = [...new Set([...k, ...m])];
+  }
+
+  daftar.sort().forEach((k) => {
+    const opsi = el("option", "", k);
+    opsi.value = k;
+    elKelas.appendChild(opsi);
+  });
+}
+
+function bukaModal() {
+  document.getElementById("modalForm").classList.add("aktif");
+}
+function tutupModal() {
+  document.getElementById("modalForm").classList.remove("aktif");
+  document.getElementById("formTambah").reset();
+  sesuaikanForm();
+}
+function sesuaikanForm() {
+  const role = document.getElementById("inputRole").value;
+  const formSiswa = document.getElementById("formSiswaKhusus");
+  const formGuru = document.getElementById("formGuruKhusus");
+  const lblId = document.getElementById("lblId");
+
+  if (role === "guru") {
+    formSiswa.style.display = "none";
+    formGuru.style.display = "block";
+    lblId.childNodes[0].textContent = "NIP ";
+  } else {
+    formSiswa.style.display = "block";
+    formGuru.style.display = "none";
+    lblId.childNodes[0].textContent = "NIS ";
+  }
+}
+
+document.getElementById("formTambah").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const role = document.getElementById("inputRole").value;
+  const nama = document.getElementById("inputNama").value.trim();
+  const idVal = document.getElementById("inputId").value.trim();
+  const foto = document.getElementById("inputFoto").value.trim() || null;
+
+  if (role === "siswa") {
+    const tgl = document.getElementById("inputTanggal").value;
+    const { error } = await db.from("siswa").insert([{
+      nis: idVal,
+      nama: nama,
+      kelas: document.getElementById("inputKelas").value.trim() || null,
+      jenis_kelamin: document.getElementById("inputJK").value,
+      tanggal_lahir: tgl ? tgl : null,
+      alamat: document.getElementById("inputAlamat").value.trim() || null,
+      foto_url: foto
+    }]);
+
+    if (error) {
+      alert("Gagal menambah siswa: " + error.message);
+      return;
+    }
+  } else {
+    const { error } = await db.from("guru").insert([{
+      nip: idVal,
+      nama: nama,
+      jurusan: document.getElementById("inputJurusan").value.trim() || null,
+      mapel: document.getElementById("inputMapel").value.trim() || null,
+      foto_url: foto
+    }]);
+
+    if (error) {
+      alert("Gagal menambah guru: " + error.message);
+      return;
+    }
+  }
+
+  alert("Data berhasil ditambahkan!");
+  tutupModal();
+  muatData();
+});
+
+elRole.addEventListener("change", () => {
+  isiPilihanKelas();
+  tampilkanSiswa();
+});
+elCari.addEventListener("input", tampilkanSiswa);
+elKelas.addEventListener("change", tampilkanSiswa);
+muatData();
+</script>
+</body>
+</html>
