@@ -248,27 +248,33 @@ let semuaSiswa = [];
 
 async function muatData() {
   tampilkanPesan("Memuat data...");
-  
-  const { data: dataSiswa } = await db
+  let gabungan = [];
+
+  // Menggunakan select("*") agar aman mengambil seluruh kolom yang ada
+  const { data: dataSiswa, error: errSiswa } = await db
     .from("siswa")
-    .select("nis, nama, kelas, jenis_kelamin, tanggal_lahir, alamat, foto_url")
+    .select("*")
     .order("nama");
 
-  let gabungan = [];
-  if (dataSiswa) {
+  if (errSiswa) {
+    console.error("Error Siswa:", errSiswa.message);
+  } else if (dataSiswa) {
     gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
   }
 
   try {
-    const { data: dataGuru } = await db
+    const { data: dataGuru, error: errGuru } = await db
       .from("guru")
-      .select("nip, nama, jurusan, mapel, foto_url")
+      .select("*")
       .order("nama");
-    if (dataGuru) {
+
+    if (errGuru) {
+      console.warn("Error Guru:", errGuru.message);
+    } else if (dataGuru) {
       gabungan = gabungan.concat(dataGuru.map(g => ({ ...g, role: "guru" })));
     }
   } catch (e) {
-    console.warn("Tabel guru belum tersedia:", e);
+    console.warn("Tabel guru error:", e);
   }
 
   semuaSiswa = gabungan;
@@ -330,9 +336,9 @@ function buatKartu(s) {
     tambahBaris(rincian, "Mapel", s.mapel);
   } else {
     tambahBaris(rincian, "Kelas", s.kelas);
-    if (TAMPILKAN.jenisKelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
-    if (TAMPILKAN.tanggalLahir) tambahBaris(rincian, "Tanggal lahir", formatTanggal(s.tanggal_lahir));
-    if (TAMPILKAN.alamat) tambahBaris(rincian, "Alamat", s.alamat);
+    if (TAMPILKAN.jenisKelamin && s.jenis_kelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
+    if (TAMPILKAN.tanggalLahir && s.tanggal_lahir) tambahBaris(rincian, "Tanggal lahir", formatTanggal(s.tanggal_lahir));
+    if (TAMPILKAN.alamat && s.alamat) tambahBaris(rincian, "Alamat", s.alamat);
   }
 
   isi.appendChild(rincian);
