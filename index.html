@@ -14,7 +14,7 @@
   --teks: #14213d;
   --teks-redup: #5b667a;
   --garis: #d6dde8;
-  --aksen: #0047ab;
+  --aksen: #4b5563;
   --bahaya: #d92d20;
   --warning: #d97706;
 }
@@ -25,7 +25,7 @@
     --teks: #e8edf6;
     --teks-redup: #98a4ba;
     --garis: #2a3650;
-    --aksen: #1e60c8;
+    --aksen: #9ca3af;
     --bahaya: #f04438;
     --warning: #f59e0b;
   }
@@ -42,6 +42,7 @@ body {
 header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
 header h1 { margin: 0 0 4px; font-size: 1.75rem; font-weight: 800; }
 header p { margin: 0; color: var(--teks-redup); }
+
 .btn-tambah {
   background: var(--aksen);
   color: #fff;
@@ -51,6 +52,7 @@ header p { margin: 0; color: var(--teks-redup); }
   font-weight: 600;
   cursor: pointer;
 }
+
 .kontrol { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0 8px; }
 .kontrol input, .kontrol select {
   font: inherit;
@@ -80,15 +82,15 @@ header p { margin: 0; color: var(--teks-redup); }
   display: flex;
   flex-direction: column;
 }
-.pita { height: 56px; background: var(--aksen); }
+.pita { height: 56px; background: #6b7280; }
 .isi { padding: 0 16px 16px; text-align: center; flex: 1; display: flex; flex-direction: column; }
 .foto {
   width: 76px; height: 76px;
   margin: -38px auto 8px;
   border-radius: 50%;
   border: 4px solid var(--kartu);
-  background: #e6effa;
-  color: var(--aksen);
+  background: #f3f4f6;
+  color: #4b5563;
   display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; overflow: hidden;
 }
 .foto img { width: 100%; height: 100%; object-fit: cover; }
@@ -120,7 +122,8 @@ header p { margin: 0; color: var(--teks-redup); }
 .btn-hapus { background: var(--bahaya); color: #fff; }
 
 .pesan { grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--teks-redup); }
-.pesan.galat { color: var(--bahaya); }
+.pesan.galat { color: #b42318; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .pesan.galat { color: #ff8b80; } }
 
 .modal {
   display: none;
@@ -160,8 +163,8 @@ header p { margin: 0; color: var(--teks-redup); }
 <div class="wadah">
   <header>
     <div>
-      <h1>Teknik Komputer Jaringan</h1>
-      <p>Cari berdasarkan role</p>
+      <h1>Teknik Jaringan Komputer</h1>
+      <p>Cari berdasarkan role.</p>
     </div>
     <button class="btn-tambah" onclick="bukaModalTambah()">+ Tambah Data</button>
   </header>
@@ -207,7 +210,7 @@ header p { margin: 0; color: var(--teks-redup); }
       <div id="formSiswaKhusus">
         <label>
           Kelas
-          <input type="text" id="inputKelas" placeholder="Contoh: XI TKJ 1">
+          <input type="text" id="inputKelas" placeholder="Contoh: X TKJ 1">
         </label>
         <label>
           Jenis Kelamin
@@ -252,9 +255,9 @@ header p { margin: 0; color: var(--teks-redup); }
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-// Kredensial Supabase dari projek Anda
-const SUPABASE_URL = "https://wvvmhxeuhyeqeqqwphlf.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2dm1oeGV1aHllcWVxcXdwaGxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzkwMjksImV4cCI6MjEwNzQ1NTAyOX0.3MFSSagPmF2jJ8YJ5vp3pEzzPcGOQ3_MZvr-mTf1HEA";
+// --- KONFIGURASI SUPABASE ---
+const SUPABASE_URL = "https://vbawwridtxnpasuamvug.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZiYXd3cmlkdHhucGFzdWFtdnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTI3OTYsImV4cCI6MjEwNzQ2ODc5Nn0.2OJ_ckWEri6hh2unM9-UNa0eAl24ZtzlB33NPsvqe78";
 
 const TAMPILKAN = {
   jenisKelamin: true,
@@ -276,8 +279,9 @@ let isEditMode = false;
 async function muatData() {
   tampilkanPesan("Memuat data...");
   let gabungan = [];
+  let pesanGalat = [];
 
-  // 1. Ambil Data Siswa
+  // 1. Fetch Data Siswa
   const { data: dataSiswa, error: errSiswa } = await db
     .from("siswa")
     .select("*")
@@ -285,11 +289,12 @@ async function muatData() {
 
   if (errSiswa) {
     console.error("Error Siswa:", errSiswa.message);
+    pesanGalat.push("Gagal memuat tabel 'siswa': " + errSiswa.message);
   } else if (dataSiswa) {
     gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
   }
 
-  // 2. Ambil Data Guru
+  // 2. Fetch Data Guru
   try {
     const { data: dataGuru, error: errGuru } = await db
       .from("guru")
@@ -298,11 +303,17 @@ async function muatData() {
 
     if (errGuru) {
       console.warn("Error Guru:", errGuru.message);
+      pesanGalat.push("Gagal memuat tabel 'guru': " + errGuru.message);
     } else if (dataGuru) {
       gabungan = gabungan.concat(dataGuru.map(g => ({ ...g, role: "guru" })));
     }
   } catch (e) {
     console.warn("Tabel guru error:", e);
+  }
+
+  if (gabungan.length === 0 && pesanGalat.length > 0) {
+    tampilkanPesan(pesanGalat.join(" | ") + ". Pastikan RLS / Policy di Supabase sudah diizinkan (Public / Allow All).", true);
+    return;
   }
 
   semuaData = gabungan;
@@ -329,7 +340,7 @@ function tampilkanSiswa() {
   elDaftar.replaceChildren();
 
   if (hasil.length === 0) {
-    tampilkanPesan(semuaData.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok.");
+    tampilkanPesan(semuaData.length === 0 ? "Belum ada data di database." : "Tidak ada data yang cocok.");
     return;
   }
 
@@ -612,15 +623,4 @@ async function hapusData(data) {
   const jenis = data.role === "guru" ? "Guru" : "Siswa";
   const idVal = data.role === "guru" ? data.nip : data.nis;
 
-  const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus data ${jenis} "${data.nama}"?`);
-  if (!konfirmasi) return;
-
-  if (data.role === "guru") {
-    const { error } = await db.from("guru").delete().eq("nip", idVal);
-    if (error) return alert("Gagal menghapus data guru: " + error.message);
-  } else {
-    const { error } = await db.from("siswa").delete().eq("nis", idVal);
-    if (error) return alert("Gagal menghapus data siswa: " + error.message);
-  }
-
-  alert("Data berhasil dihapus!");
+  const konfirmasi = confirm(`Apakah Anda yakin ingi
