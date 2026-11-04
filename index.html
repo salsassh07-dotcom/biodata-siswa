@@ -15,6 +15,8 @@
   --teks-redup: #5b667a;
   --garis: #d6dde8;
   --aksen: #0047ab;
+  --kuning-edit: #d97706;
+  --merah-hapus: #dc2626;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -24,6 +26,8 @@
     --teks-redup: #98a4ba;
     --garis: #2a3650;
     --aksen: #1e60c8;
+    --kuning-edit: #f59e0b;
+    --merah-hapus: #ef4444;
   }
 }
 * { box-sizing: border-box; }
@@ -73,9 +77,11 @@ header p { margin: 0; color: var(--teks-redup); }
   border: 1px solid var(--garis);
   border-radius: 14px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .pita { height: 56px; background: #0047ab; }
-.isi { padding: 0 16px 16px; text-align: center; }
+.isi { padding: 0 16px 16px; text-align: center; flex: 1; display: flex; flex-direction: column; }
 .foto {
   width: 76px; height: 76px;
   margin: -38px auto 8px;
@@ -88,13 +94,43 @@ header p { margin: 0; color: var(--teks-redup); }
 .foto img { width: 100%; height: 100%; object-fit: cover; }
 .nama { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .nis { margin: 0 0 12px; color: var(--teks-redup); font-size: 0.85rem; }
-.rincian { margin: 0; text-align: left; font-size: 0.9rem; }
+.rincian { margin: 0 0 16px; text-align: left; font-size: 0.9rem; flex: 1; }
 .rincian div {
   display: flex; justify-content: space-between; gap: 12px;
   padding: 6px 0; border-top: 1px solid var(--garis);
 }
 .rincian dt { color: var(--teks-redup); }
 .rincian dd { margin: 0; font-weight: 600; text-align: right; }
+
+/* Tombol Aksi Tambahan (Edit & Hapus) */
+.aksi-kartu {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.btn-edit {
+  background: var(--kuning-edit);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn-hapus {
+  background: var(--merah-hapus);
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
 .pesan { grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--teks-redup); }
 .pesan.galat { color: #b42318; }
 @media (prefers-color-scheme: dark) { .pesan.galat { color: #ff8b80; } }
@@ -159,8 +195,11 @@ header p { margin: 0; color: var(--teks-redup); }
 
 <div id="modalForm" class="modal">
   <div class="modal-konten">
-    <h2>Tambah Data Baru</h2>
+    <h2 id="judulModal">Tambah Data Baru</h2>
     <form id="formTambah">
+      <!-- Field tersembunyi untuk menyimpan ID / mode edit -->
+      <input type="hidden" id="editId" value="">
+
       <label>
         Role
         <select id="inputRole" onchange="sesuaikanForm()">
@@ -250,7 +289,6 @@ async function muatData() {
   tampilkanPesan("Memuat data...");
   let gabungan = [];
 
-  // Menggunakan select("*") agar aman mengambil seluruh kolom yang ada
   const { data: dataSiswa, error: errSiswa } = await db
     .from("siswa")
     .select("*")
@@ -327,13 +365,13 @@ function buatKartu(s) {
 
   isi.appendChild(foto);
   isi.appendChild(el("h2", "nama", s.nama));
-  isi.appendChild(el("p", "nis", s.role === "guru" ? ("NIP " + (s.nip || "-")) : ("NIS " + (s.nis || "-"))));
+  isi.appendChild(el("p", "nis", s.role === "guru" ? ("NIP. " + (s.nip || "-")) : ("NIS. " + (s.nis || "-"))));
 
   const rincian = el("dl", "rincian");
 
   if (s.role === "guru") {
     tambahBaris(rincian, "Jurusan", s.jurusan || "Teknik Komputer Jaringan");
-    tambahBaris(rincian, "Mapel", s.mapel);
+    tambahBaris(rincian, "Mata Pelajaran", s.mapel);
   } else {
     tambahBaris(rincian, "Kelas", s.kelas);
     if (TAMPILKAN.jenisKelamin && s.jenis_kelamin) tambahBaris(rincian, "Jenis kelamin", s.jenis_kelamin);
@@ -342,6 +380,22 @@ function buatKartu(s) {
   }
 
   isi.appendChild(rincian);
+
+  // Penambahan Tombol Edit & Hapus
+  const divAksi = el("div", "aksi-kartu");
+  
+  const btnEdit = el("button", "btn-edit", "Edit");
+  btnEdit.type = "button";
+  btnEdit.onclick = () => editData(s);
+
+  const btnHapus = el("button", "btn-hapus", "Hapus");
+  btnHapus.type = "button";
+  btnHapus.onclick = () => hapusData(s);
+
+  divAksi.appendChild(btnEdit);
+  divAksi.appendChild(btnHapus);
+  isi.appendChild(divAksi);
+
   kartu.appendChild(isi);
   return kartu;
 }
@@ -401,13 +455,20 @@ function isiPilihanKelas() {
 }
 
 function bukaModal() {
+  document.getElementById("judulModal").textContent = "Tambah Data Baru";
+  document.getElementById("editId").value = "";
+  document.getElementById("inputRole").disabled = false;
   document.getElementById("modalForm").classList.add("aktif");
 }
+
 function tutupModal() {
   document.getElementById("modalForm").classList.remove("aktif");
   document.getElementById("formTambah").reset();
+  document.getElementById("editId").value = "";
+  document.getElementById("inputRole").disabled = false;
   sesuaikanForm();
 }
+
 function sesuaikanForm() {
   const role = document.getElementById("inputRole").value;
   const formSiswa = document.getElementById("formSiswaKhusus");
@@ -425,8 +486,55 @@ function sesuaikanForm() {
   }
 }
 
+// Fungsi Modal Edit Data
+function editData(data) {
+  document.getElementById("judulModal").textContent = "Edit Data " + (data.role === "guru" ? "Guru" : "Siswa");
+  document.getElementById("editId").value = data.id || data.nis || data.nip;
+  
+  const elRoleInput = document.getElementById("inputRole");
+  elRoleInput.value = data.role;
+  elRoleInput.disabled = true; // Kunci role saat edit
+  sesuaikanForm();
+
+  document.getElementById("inputNama").value = data.nama || "";
+  document.getElementById("inputId").value = data.nis || data.nip || "";
+  document.getElementById("inputFoto").value = data.foto_url || "";
+
+  if (data.role === "siswa") {
+    document.getElementById("inputKelas").value = data.kelas || "";
+    document.getElementById("inputJK").value = data.jenis_kelamin || "Laki-laki";
+    document.getElementById("inputTanggal").value = data.tanggal_lahir || "";
+    document.getElementById("inputAlamat").value = data.alamat || "";
+  } else {
+    document.getElementById("inputJurusan").value = data.jurusan || "Teknik Komputer Jaringan";
+    document.getElementById("inputMapel").value = data.mapel || "";
+  }
+
+  document.getElementById("modalForm").classList.add("aktif");
+}
+
+// Fungsi Hapus Data
+async function hapusData(data) {
+  const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus ${data.nama}?`);
+  if (!konfirmasi) return;
+
+  const tabel = data.role === "siswa" ? "siswa" : "guru";
+  const fieldId = data.id ? "id" : (data.role === "siswa" ? "nis" : "nip");
+  const valId = data.id || (data.role === "siswa" ? data.nis : data.nip);
+
+  const { error } = await db.from(tabel).delete().eq(fieldId, valId);
+
+  if (error) {
+    alert("Gagal menghapus data: " + error.message);
+  } else {
+    alert("Data berhasil dihapus!");
+    muatData();
+  }
+}
+
 document.getElementById("formTambah").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const editId = document.getElementById("editId").value;
   const role = document.getElementById("inputRole").value;
   const nama = document.getElementById("inputNama").value.trim();
   const idVal = document.getElementById("inputId").value.trim();
@@ -434,7 +542,7 @@ document.getElementById("formTambah").addEventListener("submit", async (e) => {
 
   if (role === "siswa") {
     const tgl = document.getElementById("inputTanggal").value;
-    const { error } = await db.from("siswa").insert([{
+    const payload = {
       nis: idVal,
       nama: nama,
       kelas: document.getElementById("inputKelas").value.trim() || null,
@@ -442,28 +550,46 @@ document.getElementById("formTambah").addEventListener("submit", async (e) => {
       tanggal_lahir: tgl ? tgl : null,
       alamat: document.getElementById("inputAlamat").value.trim() || null,
       foto_url: foto
-    }]);
+    };
 
-    if (error) {
-      alert("Gagal menambah siswa: " + error.message);
+    let res;
+    if (editId) {
+      // Mode Edit
+      res = await db.from("siswa").update(payload).eq(editId.length > 10 ? "id" : "nis", editId);
+    } else {
+      // Mode Tambah
+      res = await db.from("siswa").insert([payload]);
+    }
+
+    if (res.error) {
+      alert("Gagal menyimpan data siswa: " + res.error.message);
       return;
     }
   } else {
-    const { error } = await db.from("guru").insert([{
+    const payload = {
       nip: idVal,
       nama: nama,
       jurusan: document.getElementById("inputJurusan").value.trim() || null,
       mapel: document.getElementById("inputMapel").value.trim() || null,
       foto_url: foto
-    }]);
+    };
 
-    if (error) {
-      alert("Gagal menambah guru: " + error.message);
+    let res;
+    if (editId) {
+      // Mode Edit
+      res = await db.from("guru").update(payload).eq(editId.length > 10 ? "id" : "nip", editId);
+    } else {
+      // Mode Tambah
+      res = await db.from("guru").insert([payload]);
+    }
+
+    if (res.error) {
+      alert("Gagal menyimpan data guru: " + res.error.message);
       return;
     }
   }
 
-  alert("Data berhasil ditambahkan!");
+  alert("Data berhasil disimpan!");
   tutupModal();
   muatData();
 });
