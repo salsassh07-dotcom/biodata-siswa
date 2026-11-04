@@ -15,6 +15,8 @@
   --teks-redup: #5b667a;
   --garis: #d6dde8;
   --aksen: #0047ab;
+  --bahaya: #d92d20;
+  --warning: #d97706;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -24,6 +26,8 @@
     --teks-redup: #98a4ba;
     --garis: #2a3650;
     --aksen: #1e60c8;
+    --bahaya: #f04438;
+    --warning: #f59e0b;
   }
 }
 * { box-sizing: border-box; }
@@ -73,31 +77,50 @@ header p { margin: 0; color: var(--teks-redup); }
   border: 1px solid var(--garis);
   border-radius: 14px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
-.pita { height: 56px; background: #0047ab; }
-.isi { padding: 0 16px 16px; text-align: center; }
+.pita { height: 56px; background: var(--aksen); }
+.isi { padding: 0 16px 16px; text-align: center; flex: 1; display: flex; flex-direction: column; }
 .foto {
   width: 76px; height: 76px;
   margin: -38px auto 8px;
   border-radius: 50%;
   border: 4px solid var(--kartu);
   background: #e6effa;
-  color: #0047ab;
+  color: var(--aksen);
   display: grid; place-items: center; font-weight: 800; font-size: 1.5rem; overflow: hidden;
 }
 .foto img { width: 100%; height: 100%; object-fit: cover; }
 .nama { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .nis { margin: 0 0 12px; color: var(--teks-redup); font-size: 0.85rem; }
-.rincian { margin: 0; text-align: left; font-size: 0.9rem; }
+.rincian { margin: 0 0 16px; text-align: left; font-size: 0.9rem; flex: 1; }
 .rincian div {
   display: flex; justify-content: space-between; gap: 12px;
   padding: 6px 0; border-top: 1px solid var(--garis);
 }
 .rincian dt { color: var(--teks-redup); }
 .rincian dd { margin: 0; font-weight: 600; text-align: right; }
+
+.aksi-kartu {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: auto;
+}
+.btn-edit, .btn-hapus {
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn-edit { background: var(--warning); color: #fff; }
+.btn-hapus { background: var(--bahaya); color: #fff; }
+
 .pesan { grid-column: 1 / -1; text-align: center; padding: 40px 16px; color: var(--teks-redup); }
-.pesan.galat { color: #b42318; }
-@media (prefers-color-scheme: dark) { .pesan.galat { color: #ff8b80; } }
+.pesan.galat { color: var(--bahaya); }
 
 .modal {
   display: none;
@@ -140,7 +163,7 @@ header p { margin: 0; color: var(--teks-redup); }
       <h1>Teknik Komputer Jaringan</h1>
       <p>Cari berdasarkan role</p>
     </div>
-    <button class="btn-tambah" onclick="bukaModal()">+ Tambah Data</button>
+    <button class="btn-tambah" onclick="bukaModalTambah()">+ Tambah Data</button>
   </header>
   <div class="kontrol">
     <input id="cari" type="search" placeholder="Cari nama, NIS, atau NIP" aria-label="Cari nama atau NIS">
@@ -159,9 +182,11 @@ header p { margin: 0; color: var(--teks-redup); }
 
 <div id="modalForm" class="modal">
   <div class="modal-konten">
-    <h2>Tambah Data Baru</h2>
+    <h2 id="judulModal">Tambah Data Baru</h2>
     <form id="formTambah">
-      <label>
+      <input type="hidden" id="editFotoUrlLama">
+      
+      <label id="lblRole">
         Role
         <select id="inputRole" onchange="sesuaikanForm()">
           <option value="siswa">Siswa</option>
@@ -175,7 +200,7 @@ header p { margin: 0; color: var(--teks-redup); }
       </label>
 
       <label id="lblId">
-        NIS
+        <span>NIS</span>
         <input type="text" id="inputId" required>
       </label>
 
@@ -213,13 +238,13 @@ header p { margin: 0; color: var(--teks-redup); }
       </div>
 
       <label>
-        URL Foto (Optional)
-        <input type="url" id="inputFoto" placeholder="https://...">
+        Pilih Foto Profil (Optional)
+        <input type="file" id="inputFileFoto" accept="image/*">
       </label>
 
       <div class="modal-aksi">
         <button type="button" class="btn-batal" onclick="tutupModal()">Batal</button>
-        <button type="submit" class="btn-simpan">Simpan</button>
+        <button type="submit" id="btnSimpan" class="btn-simpan">Simpan</button>
       </div>
     </form>
   </div>
@@ -245,12 +270,12 @@ const elCari = document.getElementById("cari");
 const elRole = document.getElementById("filterRole");
 const elKelas = document.getElementById("filterKelas");
 let semuaSiswa = [];
+let isEditMode = false;
 
 async function muatData() {
   tampilkanPesan("Memuat data...");
   let gabungan = [];
 
-  // Menggunakan select("*") agar aman mengambil seluruh kolom yang ada
   const { data: dataSiswa, error: errSiswa } = await db
     .from("siswa")
     .select("*")
@@ -342,6 +367,19 @@ function buatKartu(s) {
   }
 
   isi.appendChild(rincian);
+
+  const aksi = el("div", "aksi-kartu");
+  
+  const btnEdit = el("button", "btn-edit", "Edit");
+  btnEdit.onclick = () => bukaModalEdit(s);
+  
+  const btnHapus = el("button", "btn-hapus", "Hapus");
+  btnHapus.onclick = () => hapusData(s);
+
+  aksi.appendChild(btnEdit);
+  aksi.appendChild(btnHapus);
+  isi.appendChild(aksi);
+
   kartu.appendChild(isi);
   return kartu;
 }
@@ -400,81 +438,186 @@ function isiPilihanKelas() {
   });
 }
 
-function bukaModal() {
+function bukaModalTambah() {
+  isEditMode = false;
+  document.getElementById("judulModal").textContent = "Tambah Data Baru";
+  document.getElementById("inputRole").disabled = false;
+  document.getElementById("inputId").readOnly = false;
+  document.getElementById("editFotoUrlLama").value = "";
+  document.getElementById("formTambah").reset();
+  sesuaikanForm();
   document.getElementById("modalForm").classList.add("aktif");
 }
+
+function bukaModalEdit(data) {
+  isEditMode = true;
+  document.getElementById("judulModal").textContent = "Edit Data " + (data.role === "guru" ? "Guru" : "Siswa");
+  
+  const selectRole = document.getElementById("inputRole");
+  selectRole.value = data.role;
+  selectRole.disabled = true;
+
+  sesuaikanForm();
+
+  document.getElementById("inputNama").value = data.nama || "";
+  
+  const inputId = document.getElementById("inputId");
+  inputId.value = data.role === "guru" ? (data.nip || "") : (data.nis || "");
+  inputId.readOnly = true;
+
+  if (data.role === "siswa") {
+    document.getElementById("inputKelas").value = data.kelas || "";
+    document.getElementById("inputJK").value = data.jenis_kelamin || "Laki-laki";
+    document.getElementById("inputTanggal").value = data.tanggal_lahir || "";
+    document.getElementById("inputAlamat").value = data.alamat || "";
+  } else {
+    document.getElementById("inputJurusan").value = data.jurusan || "Teknik Komputer Jaringan";
+    document.getElementById("inputMapel").value = data.mapel || "";
+  }
+
+  document.getElementById("editFotoUrlLama").value = data.foto_url || "";
+  document.getElementById("inputFileFoto").value = "";
+  document.getElementById("modalForm").classList.add("aktif");
+}
+
 function tutupModal() {
   document.getElementById("modalForm").classList.remove("aktif");
   document.getElementById("formTambah").reset();
-  sesuaikanForm();
 }
+
 function sesuaikanForm() {
   const role = document.getElementById("inputRole").value;
   const formSiswa = document.getElementById("formSiswaKhusus");
   const formGuru = document.getElementById("formGuruKhusus");
-  const lblId = document.getElementById("lblId");
+  const lblIdText = document.querySelector("#lblId span");
 
   if (role === "guru") {
     formSiswa.style.display = "none";
     formGuru.style.display = "block";
-    lblId.childNodes[0].textContent = "NIP ";
+    lblIdText.textContent = "NIP";
   } else {
     formSiswa.style.display = "block";
     formGuru.style.display = "none";
-    lblId.childNodes[0].textContent = "NIS ";
+    lblIdText.textContent = "NIS";
   }
+}
+
+// Fungsi Upload Foto ke Supabase Storage
+async function unggahFoto(fileInput) {
+  const file = fileInput.files[0];
+  if (!file) return null;
+
+  const namaFile = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+
+  const { data, error } = await db.storage
+    .from("foto-profil")
+    .upload(namaFile, file);
+
+  if (error) {
+    alert("Gagal mengunggah foto ke Storage: " + error.message);
+    return null;
+  }
+
+  const { data: publicUrlData } = db.storage
+    .from("foto-profil")
+    .getPublicUrl(namaFile);
+
+  return publicUrlData.publicUrl;
 }
 
 document.getElementById("formTambah").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const role = document.getElementById("inputRole").value;
-  const nama = document.getElementById("inputNama").value.trim();
-  const idVal = document.getElementById("inputId").value.trim();
-  const foto = document.getElementById("inputFoto").value.trim() || null;
+  
+  const btnSimpan = document.getElementById("btnSimpan");
+  btnSimpan.disabled = true;
+  btnSimpan.textContent = "Menyimpan...";
 
-  if (role === "siswa") {
-    const tgl = document.getElementById("inputTanggal").value;
-    const { error } = await db.from("siswa").insert([{
-      nis: idVal,
-      nama: nama,
-      kelas: document.getElementById("inputKelas").value.trim() || null,
-      jenis_kelamin: document.getElementById("inputJK").value,
-      tanggal_lahir: tgl ? tgl : null,
-      alamat: document.getElementById("inputAlamat").value.trim() || null,
-      foto_url: foto
-    }]);
-
-    if (error) {
-      alert("Gagal menambah siswa: " + error.message);
-      return;
+  try {
+    const fileInput = document.getElementById("inputFileFoto");
+    let fotoUrl = await unggahFoto(fileInput);
+    
+    // Gunakan foto lama jika saat edit tidak memilih foto baru
+    if (!fotoUrl && isEditMode) {
+      fotoUrl = document.getElementById("editFotoUrlLama").value || null;
     }
-  } else {
-    const { error } = await db.from("guru").insert([{
-      nip: idVal,
-      nama: nama,
-      jurusan: document.getElementById("inputJurusan").value.trim() || null,
-      mapel: document.getElementById("inputMapel").value.trim() || null,
-      foto_url: foto
-    }]);
 
-    if (error) {
-      alert("Gagal menambah guru: " + error.message);
-      return;
+    const role = document.getElementById("inputRole").value;
+    const nama = document.getElementById("inputNama").value.trim();
+    const idVal = document.getElementById("inputId").value.trim();
+
+    if (isEditMode) {
+      if (role === "siswa") {
+        const tgl = document.getElementById("inputTanggal").value;
+        const { error } = await db.from("siswa").update({
+          nama: nama,
+          kelas: document.getElementById("inputKelas").value.trim() || null,
+          jenis_kelamin: document.getElementById("inputJK").value,
+          tanggal_lahir: tgl ? tgl : null,
+          alamat: document.getElementById("inputAlamat").value.trim() || null,
+          foto_url: fotoUrl
+        }).eq("nis", idVal);
+
+        if (error) throw error;
+      } else {
+        const { error } = await db.from("guru").update({
+          nama: nama,
+          jurusan: document.getElementById("inputJurusan").value.trim() || null,
+          mapel: document.getElementById("inputMapel").value.trim() || null,
+          foto_url: fotoUrl
+        }).eq("nip", idVal);
+
+        if (error) throw error;
+      }
+      alert("Data berhasil diperbarui!");
+    } else {
+      if (role === "siswa") {
+        const tgl = document.getElementById("inputTanggal").value;
+        const { error } = await db.from("siswa").insert([{
+          nis: idVal,
+          nama: nama,
+          kelas: document.getElementById("inputKelas").value.trim() || null,
+          jenis_kelamin: document.getElementById("inputJK").value,
+          tanggal_lahir: tgl ? tgl : null,
+          alamat: document.getElementById("inputAlamat").value.trim() || null,
+          foto_url: fotoUrl
+        }]);
+
+        if (error) throw error;
+      } else {
+        const { error } = await db.from("guru").insert([{
+          nip: idVal,
+          nama: nama,
+          jurusan: document.getElementById("inputJurusan").value.trim() || null,
+          mapel: document.getElementById("inputMapel").value.trim() || null,
+          foto_url: fotoUrl
+        }]);
+
+        if (error) throw error;
+      }
+      alert("Data berhasil ditambahkan!");
     }
+
+    tutupModal();
+    muatData();
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+  } finally {
+    btnSimpan.disabled = false;
+    btnSimpan.textContent = "Simpan";
   }
-
-  alert("Data berhasil ditambahkan!");
-  tutupModal();
-  muatData();
 });
 
-elRole.addEventListener("change", () => {
-  isiPilihanKelas();
-  tampilkanSiswa();
-});
-elCari.addEventListener("input", tampilkanSiswa);
-elKelas.addEventListener("change", tampilkanSiswa);
-muatData();
-</script>
-</body>
-</html>
+async function hapusData(data) {
+  const jenis = data.role === "guru" ? "Guru" : "Siswa";
+  const idVal = data.role === "guru" ? data.nip : data.nis;
+
+  const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus data ${jenis} "${data.nama}"?`);
+  if (!konfirmasi) return;
+
+  if (data.role === "guru") {
+    const { error } = await db.from("guru").delete().eq("nip", idVal);
+    if (error) return alert("Gagal menghapus data guru: " + error.message);
+  } else {
+    const { error } = await db.from("siswa").delete().eq("nis", idVal);
+    if (error) return alert("Gagal menghapus data siswa: " + error.message);
+  }
