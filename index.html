@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"> 
-<title>Teknik Komputer Jaringan</title>
+<title>Teknik Jaringan Komputer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -185,7 +185,7 @@ header p { margin: 0; color: var(--teks-redup); }
     <h2 id="judulModal">Tambah Data Baru</h2>
     <form id="formTambah">
       <input type="hidden" id="editFotoUrlLama">
-      
+
       <label id="lblRole">
         Role
         <select id="inputRole" onchange="sesuaikanForm()">
@@ -252,6 +252,7 @@ header p { margin: 0; color: var(--teks-redup); }
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
+// Kredensial Supabase dari projek Anda
 const SUPABASE_URL = "https://wvvmhxeuhyeqeqqwphlf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2dm1oeGV1aHllcWVxcXdwaGxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NzkwMjksImV4cCI6MjEwNzQ1NTAyOX0.3MFSSagPmF2jJ8YJ5vp3pEzzPcGOQ3_MZvr-mTf1HEA";
 
@@ -269,13 +270,14 @@ const elJumlah = document.getElementById("jumlah");
 const elCari = document.getElementById("cari");
 const elRole = document.getElementById("filterRole");
 const elKelas = document.getElementById("filterKelas");
-let semuaSiswa = [];
+let semuaData = [];
 let isEditMode = false;
 
 async function muatData() {
   tampilkanPesan("Memuat data...");
   let gabungan = [];
 
+  // 1. Ambil Data Siswa
   const { data: dataSiswa, error: errSiswa } = await db
     .from("siswa")
     .select("*")
@@ -287,6 +289,7 @@ async function muatData() {
     gabungan = gabungan.concat(dataSiswa.map(s => ({ ...s, role: "siswa" })));
   }
 
+  // 2. Ambil Data Guru
   try {
     const { data: dataGuru, error: errGuru } = await db
       .from("guru")
@@ -302,7 +305,7 @@ async function muatData() {
     console.warn("Tabel guru error:", e);
   }
 
-  semuaSiswa = gabungan;
+  semuaData = gabungan;
   isiPilihanKelas();
   tampilkanSiswa();
 }
@@ -312,7 +315,7 @@ function tampilkanSiswa() {
   const roleDipilih = elRole ? elRole.value : "";
   const kelasDipilih = elKelas.value;
 
-  const hasil = semuaSiswa.filter((s) => {
+  const hasil = semuaData.filter((s) => {
     const cocokRole = !roleDipilih || s.role === roleDipilih;
     const cocokKelas = !kelasDipilih || s.kelas === kelasDipilih || s.mapel === kelasDipilih;
     const nama = (s.nama || "").toLowerCase();
@@ -322,11 +325,11 @@ function tampilkanSiswa() {
     return cocokRole && cocokKelas && cocokCari;
   });
 
-  elJumlah.textContent = hasil.length + " dari " + semuaSiswa.length + " data";
+  elJumlah.textContent = hasil.length + " dari " + semuaData.length + " data";
   elDaftar.replaceChildren();
 
   if (hasil.length === 0) {
-    tampilkanPesan(semuaSiswa.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok.");
+    tampilkanPesan(semuaData.length === 0 ? "Belum ada data." : "Tidak ada data yang cocok.");
     return;
   }
 
@@ -422,12 +425,12 @@ function isiPilihanKelas() {
 
   let daftar = [];
   if (role === "siswa") {
-    daftar = [...new Set(semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean))];
+    daftar = [...new Set(semuaData.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean))];
   } else if (role === "guru") {
-    daftar = [...new Set(semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean))];
+    daftar = [...new Set(semuaData.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean))];
   } else {
-    const k = semuaSiswa.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean);
-    const m = semuaSiswa.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean);
+    const k = semuaData.filter(s => s.role === "siswa").map(s => s.kelas).filter(Boolean);
+    const m = semuaData.filter(s => s.role === "guru").map(s => s.mapel).filter(Boolean);
     daftar = [...new Set([...k, ...m])];
   }
 
@@ -502,7 +505,6 @@ function sesuaikanForm() {
   }
 }
 
-// Fungsi Upload Foto ke Supabase Storage
 async function unggahFoto(fileInput) {
   const file = fileInput.files[0];
   if (!file) return null;
@@ -536,7 +538,6 @@ document.getElementById("formTambah").addEventListener("submit", async (e) => {
     const fileInput = document.getElementById("inputFileFoto");
     let fotoUrl = await unggahFoto(fileInput);
     
-    // Gunakan foto lama jika saat edit tidak memilih foto baru
     if (!fotoUrl && isEditMode) {
       fotoUrl = document.getElementById("editFotoUrlLama").value || null;
     }
@@ -621,3 +622,5 @@ async function hapusData(data) {
     const { error } = await db.from("siswa").delete().eq("nis", idVal);
     if (error) return alert("Gagal menghapus data siswa: " + error.message);
   }
+
+  alert("Data berhasil dihapus!");
